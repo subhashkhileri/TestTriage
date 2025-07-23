@@ -58,33 +58,77 @@ def analyze_screenshot_visual_confirmation(image_path: str, test_failure_analysi
             image = None
         
         prompt_with_image = f"""
-**Objective:** Analyze the provided screenshot from a failed test and the test context to determine the root cause of the failure. Additionally, describe what the screenshot visually shows and how it relates to the failure.
+**Objective:** Provide a BRIEF visual analysis of the test failure screenshot with emphasis on visual evidence.
 
 **Test Context:**
 - Test Name: {test_title}
 - Test Failure Analysis: {test_failure_analysis_text}
 - JUnit XML Failure: {junit_xml_failure}
 
-**Analysis Requirements:**
-1.  **Screenshot Description:** Clearly describe the key visual elements in the screenshot. What does the screenshot show (e.g., UI elements, error messages, application state)?
-2.  **Screenshot Interpretation:** Explain what the visual information in the screenshot infers or indicates in relation to the test execution.
-3.  **Root Cause Analysis:** Based on the screenshot and test context, explain the root cause of the test failure.
+**Required Brief Analysis (Keep concise - 3-4 sentences per section):**
 
-Please provide a concise analysis covering these three points. The response must have a claim specifically detailing what the screenshot shows and infers, and this claim must be supported by the screenshot.
+## 🔍 VISUAL EVIDENCE
+**What the screenshot shows:**
+- Key UI elements visible (buttons, forms, error messages, states)
+- Visual anomalies or unexpected elements
+- Current application state/page
+
+## 🔗 VISUAL-TO-FAILURE CORRELATION
+**How visuals connect to test failure:**
+- Expected vs actual visual state
+- Which test step this screenshot represents
+- Visual indicators of the failure point
+
+## 🎯 VISUAL ROOT CAUSE
+**Primary cause based on visual evidence:**
+- Main issue visible in screenshot
+- Visual confirmation of technical failure
+- Actionable fix based on what's seen
+
+**Requirements:**
+- Prioritize visual observations over technical speculation
+- Keep each section to 2-3 concise bullet points
+- Focus on what can be directly observed in the image
+- Emphasize visual evidence throughout
 """
+
         prompt_without_image = f"""
-**Objective:** Analyze the provided test context to determine the root cause of the failure.
+**Objective:** Provide a BRIEF analysis of test failure context when no visual evidence is available.
 
 **Test Context:**
 - Test Name: {test_title}
 - Test Failure Analysis: {test_failure_analysis_text}
 - JUnit XML Failure: {junit_xml_failure}
 
-**Analysis Requirements:**
-1.  **Test Context Analysis:** Analyze the test context to determine the root cause of the failure.
-2.  **Root Cause Analysis:** Based on the test context, explain the root cause of the test failure.
+**Required Analysis Structure:**
 
-Please provide a concise analysis covering these two points.
+## 1. TEST CONTEXT ANALYSIS
+Examine the available test information:
+- Test purpose and expected behavior
+- Failure message interpretation
+- Error patterns and stack traces
+- Test execution environment indicators
+
+## 2. FAILURE PATTERN IDENTIFICATION
+Identify the type and nature of the failure:
+- **Error Category:** (UI, API, timing, configuration, etc.)
+- **Failure Timing:** When in the test execution the failure occurred
+- **Error Propagation:** How the error manifested through the system
+- **Impact Scope:** What parts of the application are affected
+
+## 3. ROOT CAUSE DETERMINATION
+Based on available context:
+- **Primary Cause:** The main reason for failure based on error analysis
+- **Contributing Factors:** Additional issues indicated by the failure data
+- **Test Validity:** Whether the failure indicates app issues or test problems
+- **Actionable Insights:** Specific steps to resolve based on error analysis
+
+**Note:** Screenshot analysis would provide additional visual context for more comprehensive root cause analysis.
+
+**Requirements:**
+- Keep analysis under 100 words total
+- Focus on actionable insights
+- Prioritize error message interpretation
 """
         response = model.generate_content([prompt_with_image, image] if image else prompt_without_image)
         return response.text
@@ -92,14 +136,14 @@ Please provide a concise analysis covering these two points.
         return f"Error during screenshot analysis: {str(e)}"
 
 @tool
-def get_text_from_file(prefix: str):
+def get_text_from_file(file_path: str):
     """Get the text from a file from the given file path and return the text.
     Args:
-        prefix (str): The prefix of the file to get the text of.
+        file_path (str): The path of the file to get the text from.
     Returns:
         str: The text of the file.
     """
-    return storage_client.get_text_from_blob(prefix)
+    return storage_client.get_text_from_blob(file_path)
 
 @tool
 def get_folder_structure(prefix: str):

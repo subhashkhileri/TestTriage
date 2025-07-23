@@ -29,18 +29,7 @@ oc new-project $PROJECT_NAME 2>/dev/null || oc project $PROJECT_NAME
 
 # Check if secrets exist, if not, create them from template
 if ! oc get secret slack-secrets &> /dev/null; then
-    if [ -f "k8s/secrets-template.yaml" ]; then
-        echo "🔐 Creating secrets from template..."
-        oc apply -f k8s/secrets-template.yaml
-        echo "✅ Secrets created successfully"
-    else
-        echo "⚠️  Secrets not found and no template available. Please create secrets first:"
-        echo "   1. Copy k8s/secrets-template.yaml to k8s/secrets.yaml"
-        echo "   2. Replace placeholder values with your actual credentials"
-        echo "   3. Run: oc apply -f k8s/secrets.yaml"
-        echo "   4. Then re-run this script"
-        exit 1
-    fi
+    echo "⚠️  Secrets not found and no template available. Please create secrets"
 else
     echo "✅ Secrets found"
 fi
@@ -48,7 +37,21 @@ fi
 # Build the container image using OpenShift's built-in Docker build
 echo "🔨 Building container image..."
 oc new-build --binary --name=$IMAGE_NAME --strategy=docker 2>/dev/null || true
-oc start-build $IMAGE_NAME --from-dir=. --follow --wait
+
+# Create a temporary directory with only necessary files
+echo "📦 Preparing build context (excluding venv and unnecessary files)..."
+BUILD_DIR=$(mktemp -d)
+trap "rm -rf $BUILD_DIR" EXIT
+
+# Copy files excluding venv, k8s, and other unnecessary directories
+rsync -av --exclude='venv/' --exclude='k8s/' --exclude='.git/' --exclude='__pycache__/' --exclude='*.pyc' --exclude='*.log' --exclude='.DS_Store' . "$BUILD_DIR/"
+
+# Start build with clean directory
+oc start-build $IMAGE_NAME --from-dir="$BUILD_DIR" --follow --wait
+
+# Clean up build directory immediately after build
+echo "🗑️  Cleaning up build directory..."
+rm -rf "$BUILD_DIR"
 
 echo "✅ Container image built successfully"
 
@@ -63,8 +66,8 @@ echo "🔗 Linking deployment to built image..."
 oc set image deployment/slack-bot slack-bot=$IMAGE_NAME:latest
 
 # Wait for deployment to be ready
-echo "⏳ Waiting for deployment to be ready..."
-oc rollout status deployment/slack-bot --timeout=300s
+# echo "⏳ Waiting for deployment to be ready..."
+# oc rollout status deployment/slack-bot --timeout=300s
 
 # Get the route URL
 ROUTE_URL=$(oc get route slack-bot-route -o jsonpath='{.spec.host}')

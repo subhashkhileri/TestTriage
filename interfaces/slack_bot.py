@@ -41,8 +41,8 @@ class SlackBot:
                 pickle_file = f"{conversation_dir}conversation_{thread_ts}.pkl"
                 
                 # Ignore bot messages and messages without text
-                if event.get('subtype') == 'bot_message' or 'text' not in event:
-                    logger.info("Ignoring bot message or message without text")
+                if 'text' not in event:
+                    logger.info("Ignoring message without text")
                     return
                 
                 logger.info(f"Received app mention in channel: \n {event}")

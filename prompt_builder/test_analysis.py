@@ -8,7 +8,7 @@ def get_e2e_test_analysis_prompt(base_dir: str) -> str:
     e2e_step_registory_dir = [dir for dir in storage_client.get_immediate_directories(f"{base_dir}/artifacts/{e2e_job_dir}/") if dir.endswith("-nightly")]
     e2e_step_registory_dir = e2e_step_registory_dir[0] if e2e_step_registory_dir else None
     print(e2e_step_registory_dir)
-    e2e_playwright_projects_result_dirs = [dir for dir in storage_client.get_immediate_directories(f"{base_dir}/artifacts/{e2e_job_dir}/{e2e_step_registory_dir}/artifacts/")]
+    e2e_playwright_projects_result_dirs = [dir for dir in storage_client.get_immediate_directories(f"{base_dir}/artifacts/{e2e_job_dir}/{e2e_step_registory_dir}/artifacts/") if "reporting" not in dir]
     print(e2e_playwright_projects_result_dirs)
     build_log_path = f"{base_dir}/artifacts/{e2e_job_dir}/{e2e_step_registory_dir}/build-log.txt"
     print(build_log_path)

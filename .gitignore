@@ -142,3 +142,6 @@ conversation_*.pkl
 # OS files
 .DS_Store
 Thumbs.db 
+
+
+secrets.yaml
