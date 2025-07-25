@@ -37,10 +37,19 @@ spec:
               key: google-api-key
         - name: PORT
           value: "3000"
+        - name: CONVERSATION_DATA_DIR
+          value: "/app/data/"
+        volumeMounts:
+        - name: data-storage
+          mountPath: /app/data
         resources:
           requests:
             memory: "512Mi"
             cpu: "250m"
           limits:
             memory: "1Gi"
-            cpu: "500m" 
+            cpu: "500m"
+      volumes:
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: slack-bot-data 

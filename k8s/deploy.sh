@@ -57,13 +57,13 @@ echo "✅ Container image built successfully"
 
 # Apply Kubernetes manifests
 echo "🚀 Deploying application..."
+oc apply -f k8s/pvc.yaml
 oc apply -f k8s/deployment.yaml
 oc apply -f k8s/service.yaml
 oc apply -f k8s/route.yaml
 
-# Set the deployment to use the built image from the ImageStream
-echo "🔗 Linking deployment to built image..."
-oc set image deployment/slack-bot slack-bot=$IMAGE_NAME:latest
+# The deployment.yaml already has the correct image reference to the internal registry
+echo "✅ Deployment applied with correct image reference"
 
 # Wait for deployment to be ready
 # echo "⏳ Waiting for deployment to be ready..."
