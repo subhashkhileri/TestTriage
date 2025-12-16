@@ -9,6 +9,11 @@ import os
 from utils.storage import storage_client
 from config.settings import settings
 
+# Add these imports at the top of test_analysis_tools.py
+import chromadb
+from chromadb.config import Settings
+import json
+
 @tool
 def get_failed_testsuites(xml_file_prefix: str):
     """
@@ -58,77 +63,53 @@ def analyze_screenshot_visual_confirmation(image_path: str, test_failure_analysi
             image = None
         
         prompt_with_image = f"""
-**Objective:** Provide a BRIEF visual analysis of the test failure screenshot with emphasis on visual evidence.
+**Objective:** Analyze the screenshot and provide a comprehensive Root Cause Analysis that will be used directly in a markdown report.
 
 **Test Context:**
 - Test Name: {test_title}
 - Test Failure Analysis: {test_failure_analysis_text}
 - JUnit XML Failure: {junit_xml_failure}
 
-**Required Brief Analysis (Keep concise - 3-4 sentences per section):**
+**CRITICAL: Return your analysis in EXACTLY this format (this will be inserted directly into the report):**
 
-## 🔍 VISUAL EVIDENCE
-**What the screenshot shows:**
-- Key UI elements visible (buttons, forms, error messages, states)
-- Visual anomalies or unexpected elements
-- Current application state/page
+[2-3 comprehensive sentences that combine the root cause statement with visual evidence. First sentence should identify the root cause clearly (e.g., "The root cause is..."). Following sentences should describe what the screenshot shows and how it correlates to the failure, providing technical details about UI elements, states, and context.]
 
-## 🔗 VISUAL-TO-FAILURE CORRELATION
-**How visuals connect to test failure:**
-- Expected vs actual visual state
-- Which test step this screenshot represents
-- Visual indicators of the failure point
-
-## 🎯 VISUAL ROOT CAUSE
-**Primary cause based on visual evidence:**
-- Main issue visible in screenshot
-- Visual confirmation of technical failure
-- Actionable fix based on what's seen
+**Example Format:**
+"The root cause is that the test is using an incorrect or outdated data-testid selector to locate the 'Overview' tab, leading to a timeout even though the element is visually present. The screenshot shows the Red Hat Developer Hub application displaying a user's profile page, where the 'Overview' tab is clearly visible and selected as the active tab in the main content area."
 
 **Requirements:**
-- Prioritize visual observations over technical speculation
-- Keep each section to 2-3 concise bullet points
-- Focus on what can be directly observed in the image
-- Emphasize visual evidence throughout
+- Write 2-3 comprehensive sentences as a single flowing paragraph
+- First sentence MUST start with "The root cause is..." and identify the specific technical issue
+- Following sentences should describe observable facts from the screenshot (UI state, visible elements, error messages, page state, anomalies)
+- Be specific about UI elements, their states, positions, and any visible context
+- Explain the correlation between what's visible and why the test failed
+- Use complete sentences in paragraph form, not bullet points or separate sections
+- Do NOT use markdown headers (##), bold text (**), or emojis in your response
+- Do NOT include section labels like "Visual Evidence:" or "Conclusion:"
 """
 
         prompt_without_image = f"""
-**Objective:** Provide a BRIEF analysis of test failure context when no visual evidence is available.
+**Objective:** Analyze the test failure and provide a comprehensive Root Cause Analysis when no screenshot is available.
 
 **Test Context:**
 - Test Name: {test_title}
 - Test Failure Analysis: {test_failure_analysis_text}
 - JUnit XML Failure: {junit_xml_failure}
 
-**Required Analysis Structure:**
+**CRITICAL: Return your analysis in EXACTLY this format (this will be inserted directly into the report):**
 
-## 1. TEST CONTEXT ANALYSIS
-Examine the available test information:
-- Test purpose and expected behavior
-- Failure message interpretation
-- Error patterns and stack traces
-- Test execution environment indicators
-
-## 2. FAILURE PATTERN IDENTIFICATION
-Identify the type and nature of the failure:
-- **Error Category:** (UI, API, timing, configuration, etc.)
-- **Failure Timing:** When in the test execution the failure occurred
-- **Error Propagation:** How the error manifested through the system
-- **Impact Scope:** What parts of the application are affected
-
-## 3. ROOT CAUSE DETERMINATION
-Based on available context:
-- **Primary Cause:** The main reason for failure based on error analysis
-- **Contributing Factors:** Additional issues indicated by the failure data
-- **Test Validity:** Whether the failure indicates app issues or test problems
-- **Actionable Insights:** Specific steps to resolve based on error analysis
-
-**Note:** Screenshot analysis would provide additional visual context for more comprehensive root cause analysis.
+[2-3 comprehensive sentences that combine the root cause statement with error analysis. First sentence should identify the root cause clearly (e.g., "The root cause is..."). Following sentences should analyze the error message, stack trace, and test context to explain what likely happened during test execution and why the failure occurred.]
 
 **Requirements:**
-- Keep analysis under 100 words total
-- Focus on actionable insights
-- Prioritize error message interpretation
+- Write 2-3 comprehensive sentences as a single flowing paragraph
+- First sentence MUST start with "The root cause is..." and identify the specific technical issue
+- Following sentences should analyze the error message, stack trace patterns, timing issues, element state issues, or other technical factors
+- Be specific and technical in explaining the chain of events or conditions that led to the failure
+- Explain what the test was attempting to do and why it failed based on the error evidence
+- Use complete sentences in paragraph form, not bullet points or separate sections
+- Do NOT use markdown headers (##), bold text (**), or emojis in your response
+- Do NOT include section labels like "Visual Evidence:" or "Conclusion:"
+- Focus on error message interpretation and test context analysis
 """
         response = model.generate_content([prompt_with_image, image] if image else prompt_without_image)
         return response.text
@@ -180,6 +161,52 @@ def get_folder_structure(prefix: str):
         return '\n'.join(tree_output)
     except Exception as e:
         return f"Error getting folder structure: {e}"
+
+@tool
+def get_immediate_directories(prefix: str):
+    """Get immediate subdirectory names from a given prefix path (only first level, not recursive).
+    Args:
+        prefix (str): The prefix path to search for immediate subdirectories.
+    Returns:
+        str: Comma-separated list of immediate directory names or error message.
+    """
+    try:
+        directories = storage_client.get_immediate_directories(prefix)
+        if not directories:
+            return f"No immediate subdirectories found at prefix: {prefix}"
+        return ", ".join(directories)
+    except Exception as e:
+        return f"Error getting immediate directories: {e}"
+
+@tool
+def get_immediate_files(prefix: str):
+    """Get immediate file names from a given prefix path (only first level, not in subdirectories).
+    Args:
+        prefix (str): The prefix path to search for immediate files.
+    Returns:
+        str: Comma-separated list of immediate file names or error message.
+    """
+    try:
+        files = storage_client.get_immediate_files(prefix)
+        if not files:
+            return f"No immediate files found at prefix: {prefix}"
+        return ", ".join(files)
+    except Exception as e:
+        return f"Error getting immediate files: {e}"
+
+@tool
+def check_file_exists(file_path: str):
+    """Check if a file exists at the given path.
+    Args:
+        file_path (str): The file path to check.
+    Returns:
+        str: "exists" or "not found"
+    """
+    try:
+        exists = storage_client.blob_exists(file_path)
+        return "exists" if exists else "not found"
+    except Exception as e:
+        return f"Error checking file existence: {e}"
 
 @tool
 def get_texts_from_files(file_paths: List[str]):
@@ -252,31 +279,71 @@ def create_jira_bug(
 ):
     """
     Create a Jira bug ticket only when user asks to create a Jira bug.
-    
+
     Args:
-        summary (str): JIRA ticket summary/title.
+        summary (str): JIRA ticket summary/title (max 255 chars, will be truncated if longer).
         description (str): Detailed description of the bug including Test purpose, failure message, root cause analysis and screenshot analysis, etc.
         image_path (str): GCS Path to screenshot file to attach to the ticket from JUnit XML failure.
         prowlink (str): Prow link to the test failure log.
-        
+
     Returns:
         str: Success message with ticket key and url or error message
     """
     try:
+        # Check for JIRA_PAT first
+        jira_pat = os.getenv("JIRA_PAT")
+        if not jira_pat:
+            return "Error: JIRA_PAT environment variable is not set. Please configure your Jira Personal Access Token."
+
+        # Input validation
+        if not summary or not summary.strip():
+            return "Error: Summary cannot be empty"
+
+        if not description or not description.strip():
+            return "Error: Description cannot be empty"
+
+        # Truncate summary to Jira's 255 character limit
+        max_summary_length = 255
+        original_summary = summary
+        if len(summary) > max_summary_length:
+            summary = summary[:max_summary_length - 3] + "..."
+            truncation_note = f"\n(Note: Summary was truncated from {len(original_summary)} to {max_summary_length} characters)"
+        else:
+            truncation_note = ""
+
         jira_client = JIRA(
             server="https://issues.redhat.com/",
-            token_auth=os.getenv("JIRA_PAT")
+            token_auth=jira_pat
         )
-        
+
+        # RHDHBUGS requires summary field on creation
+        # Build the initial issue dict with required fields
         issue_dict = {
-            'project': {'key': 'RHIDP'},
-            'summary': summary,
-            'description': description,
+            'project': {'key': 'RHDHBUGS'},
             'issuetype': {'name': 'Bug'},
-            'labels': ['ci-fail']
+            'summary': summary.strip()
         }
-        
+
+        # Add description if provided
+        if description and description.strip():
+            issue_dict['description'] = description.strip()
+
+        print(f"Creating JIRA issue in RHDHBUGS project...")
         new_issue = jira_client.create_issue(fields=issue_dict)
+        print(f"✓ Issue created: {new_issue.key}")
+
+        # Track any errors that occur during optional updates
+        update_errors = []
+
+        # Try to add labels separately (this is optional)
+        try:
+            print(f"Adding label 'ci-fail' to issue {new_issue.key}...")
+            new_issue.update(fields={'labels': ['ci-fail']})
+            print(f"✓ Successfully added label")
+        except Exception as e:
+            error_msg = str(e)
+            update_errors.append(f"Could not add labels: {error_msg}")
+            print(f"⚠ Warning: {update_errors[-1]}")
 
         # Attach image if provided
         attachment_info = ""
@@ -318,18 +385,36 @@ def create_jira_bug(
                 link_info = f"\nWarning: Failed to attach prow link - {str(link_error)}"
         
         ticket_url = f"https://issues.redhat.com/browse/{new_issue.key}"
-        
-        return f"Jira bug created successfully!\nTicket Key: {new_issue.key}{attachment_info}{link_info}\nURL: {ticket_url}"
-        
+
+        # Build warning message if there were any update errors
+        warnings = ""
+        if update_errors:
+            warnings = "\n\nWarnings:\n" + "\n".join(f"  - {err}" for err in update_errors)
+
+        return f"Jira bug created successfully!\nTicket Key: {new_issue.key}{truncation_note}{attachment_info}{link_info}\nURL: {ticket_url}{warnings}"
+
     except Exception as e:
         error_msg = str(e)
-        
+
+        # Enhanced error handling for specific cases
         if "401" in error_msg or "Unauthorized" in error_msg:
             return f"Authentication failed. Please check your JIRA_PAT environment variable: {error_msg}"
         elif "403" in error_msg or "Forbidden" in error_msg:
-            return f"Permission denied. Check if you have permission to create issues in project 'RHIDP': {error_msg}"
+            return f"Permission denied. Check if you have permission to create issues in project 'RHDHBUGS': {error_msg}"
         elif "404" in error_msg or "Not Found" in error_msg:
-            return f"Project 'RHIDP' not found or Jira URL is incorrect: {error_msg}"
+            return f"Project 'RHDHBUGS' not found or Jira URL is incorrect: {error_msg}"
+        elif "400" in error_msg:
+            # Parse HTTP 400 errors for field validation issues
+            if "Field" in error_msg and "cannot be set" in error_msg:
+                return (f"Field validation error. The RHDHBUGS project may have custom required fields or screen configurations.\n"
+                       f"Error details: {error_msg}\n"
+                       f"Suggestion: Check the project's create issue screen configuration in Jira.")
+            elif "component" in error_msg.lower():
+                return f"Component error. The specified component may not exist in RHDHBUGS project: {error_msg}"
+            elif "priority" in error_msg.lower():
+                return f"Priority error. The specified priority may not be valid: {error_msg}"
+            else:
+                return f"Bad request (HTTP 400). Check input values: {error_msg}"
         else:
             return f"Error creating Jira bug: {error_msg}"
 
@@ -437,81 +522,208 @@ def update_jira_bug(
         else:
             return f"Error updating Jira bug: {error_msg}"
 
+
+# Initialize ChromaDB client and embedding model (add after imports, before tools)
+_chroma_client = None
+_embedding_model_name = None
+_jira_collection = None
+
+def _get_chroma_resources():
+    """Lazy initialization of ChromaDB and embedding model."""
+    global _chroma_client, _embedding_model_name, _jira_collection
+
+    if _chroma_client is None:
+        chroma_persist_dir = os.getenv("CHROMA_PERSIST_DIR", settings.chroma_db_dir)
+        _chroma_client = chromadb.PersistentClient(
+            path=chroma_persist_dir,
+            settings=Settings(anonymized_telemetry=False)
+        )
+
+    if _embedding_model_name is None:
+        # Initialize Google API if not already configured
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+        if google_api_key:
+            genai.configure(api_key=google_api_key)
+        _embedding_model_name = os.getenv("EMBEDDING_MODEL", "models/text-embedding-004")
+
+    if _jira_collection is None:
+        _jira_collection = _chroma_client.get_or_create_collection(
+            name="jira_issues",
+            metadata={"description": "RHDHBUGS Jira issues for semantic similarity search"}
+        )
+
+    return _chroma_client, _embedding_model_name, _jira_collection
+
+
 @tool
-def search_jira_bugs(
-    jql_query: str
+def search_similar_jira_issues(
+    failure_description: str,
+    test_name: str = None,
+    error_message: str = None,
+    top_k: int = 5,
+    similarity_threshold: float = 0.60
 ):
     """
-    Search for existing Jira bugs using a custom JQL query based on detailed description of the failure including Test purpose, failure message from JUnit XML, root cause analysis and screenshot analysis, etc.  no component, label, just use summary and text
+    Search for similar Jira issues using semantic similarity based on test failure information.
+    This tool uses AI embeddings to find historically reported issues that are semantically similar
+    to the current failure, even if they use different wording.
     
     Args:
-        jql_query (str): JQL query to search for issues based on detailed description of the failure including Test purpose, failure message from JUnit XML, root cause analysis and screenshot analysis, etc.  no component, label, just use summary and text
+        failure_description (str): Comprehensive description of the test failure including root cause analysis, 
+                                  visual evidence from screenshots, and failure context. This should be the 
+                                  complete analysis generated by the agent.
+        test_name (str, optional): Name of the failed test to improve matching accuracy.
+        error_message (str, optional): Error message from JUnit XML to improve matching accuracy.
+        top_k (int): Number of similar issues to return (default: 5, max: 10).
+        similarity_threshold (float): Minimum similarity score (0-1) to include results (default: 0.60).
+                                     Higher values = stricter matching.
         
     Returns:
-        str: List of matching issues with key, summary, status, and URL or error message
+        str: Formatted list of similar issues with similarity scores, summaries, statuses, and URLs.
+             Returns message if no similar issues found above threshold.
     """
     try:
-        jira_client = JIRA(
-            server="https://issues.redhat.com/",
-            token_auth=os.getenv("JIRA_PAT")
+        # Get ChromaDB resources
+        _, embedding_model_name, collection = _get_chroma_resources()
+
+        # Check if collection has any data
+        if collection.count() == 0:
+            return ("No Jira issues found in the database. Please run jira_sync_to_chroma.py "
+                   "to populate the database with existing issues.")
+
+        # Validate top_k
+        top_k = min(max(1, top_k), 10)  # Clamp between 1 and 10
+
+        # Validate similarity_threshold
+        similarity_threshold = max(0.0, min(1.0, similarity_threshold))
+
+        # Construct comprehensive search query
+        search_components = [f"Failure Description: {failure_description}"]
+
+        if test_name:
+            search_components.append(f"Test Name: {test_name}")
+
+        if error_message:
+            search_components.append(f"Error: {error_message}")
+
+        search_query = "\n".join(search_components)
+
+        # Generate embedding for the search query using Google's API
+        result = genai.embed_content(
+            model=embedding_model_name,
+            content=search_query,
+            task_type="retrieval_query"
+        )
+        query_embedding = result['embedding']
+
+        # Search for similar issues
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=top_k
         )
         
-        # Ensure the query includes project restriction to RHIDP
-        if "project" not in jql_query.lower():
-            # Add project constraint if not already present
-            final_jql_query = f"project = RHIDP AND ({jql_query})"
-        else:
-            # Use the query as-is if it already includes project specification
-            final_jql_query = jql_query
+        # Process results
+        if not results['ids'] or not results['ids'][0]:
+            return "No similar issues found in the database."
         
-        # Search for issues using the modified JQL query
-        issues = jira_client.search_issues(final_jql_query, maxResults=3)
+        # Extract results
+        ids = results['ids'][0]
+        distances = results['distances'][0]
+        metadatas = results['metadatas'][0]
+        documents = results['documents'][0]
         
-        if not issues:
-            return f"No matching issues found for JQL query: '{final_jql_query}'"
+        # Convert distances to similarity scores (cosine similarity)
+        # ChromaDB returns L2 distances, convert to similarity
+        similarities = [1 - (dist / 2) for dist in distances]
         
-        # Format results
-        results = []
-        results.append(f"Found {len(issues)} matching issue(s) for query: '{final_jql_query}':")
-        results.append("")
+        # Filter by threshold
+        filtered_results = []
+        for i, similarity in enumerate(similarities):
+            if similarity >= similarity_threshold:
+                filtered_results.append({
+                    'key': ids[i],
+                    'similarity': similarity,
+                    'metadata': metadatas[i],
+                    'document': documents[i]
+                })
         
-        for issue in issues:
-            # Get basic issue info
-            key = issue.key
-            status = issue.fields.status.name
-            issue_type = issue.fields.issuetype.name
+        if not filtered_results:
+            return (f"No similar issues found with similarity >= {similarity_threshold:.2f}. "
+                   f"Try lowering the threshold or check if the database is up to date.")
+        
+        # Format output
+        output_lines = [
+            f"Found {len(filtered_results)} similar issue(s) based on semantic analysis:",
+            f"(Showing issues with similarity >= {similarity_threshold:.2f})",
+            ""
+        ]
+        
+        for i, result in enumerate(filtered_results, 1):
+            metadata = result['metadata']
             
-            # Build issue URL
-            issue_url = f"https://issues.redhat.com/browse/{key}"
+            # Parse JSON fields
+            labels = json.loads(metadata.get('labels', '[]'))
+            components = json.loads(metadata.get('components', '[]'))
             
-            # Format each issue
+            # Format similarity percentage
+            similarity_pct = result['similarity'] * 100
+            
+            # Create similarity bar visualization
+            bar_length = int(similarity_pct / 10)
+            similarity_bar = '█' * bar_length + '░' * (10 - bar_length)
+            
             issue_info = f"""
-Type: {issue_type}
-Status: {status}
-URL: {issue_url}
----"""
-            results.append(issue_info)
+{'='*70}
+#{i} - {metadata.get('key', 'N/A')} ({similarity_pct:.1f}% match) {similarity_bar}
+{'='*70}
+Summary: {metadata.get('summary', 'N/A')}
+Description: {metadata.get('description', 'N/A')}
+Status: {metadata.get('status', 'N/A')} | Type: {metadata.get('issuetype', 'N/A')} | Priority: {metadata.get('priority', 'N/A')}
+Resolution: {metadata.get('resolution', 'Unresolved')}
+Created: {metadata.get('created', 'N/A')[:10]} | Updated: {metadata.get('updated', 'N/A')[:10]}
+Components: {', '.join(components) if components else 'None'}
+Labels: {', '.join(labels) if labels else 'None'}
+URL: {metadata.get('url', 'N/A')}
+"""
+            output_lines.append(issue_info)
         
-        return '\n'.join(results)
+        output_lines.append("")
+        output_lines.append("💡 Recommendation:")
+        
+        # Provide intelligent recommendations based on results
+        best_match = filtered_results[0]
+        best_similarity = best_match['similarity'] * 100
+        
+        if best_similarity >= 90:
+            output_lines.append(
+                f"   • Very high similarity ({best_similarity:.1f}%) - This appears to be the same or nearly identical issue."
+            )
+            output_lines.append(f"   • Consider updating issue {best_match['key']} instead of creating a new one.")
+        elif best_similarity >= 80:
+            output_lines.append(
+                f"   • High similarity ({best_similarity:.1f}%) - Review {best_match['key']} before creating a new issue."
+            )
+            output_lines.append("   • The root cause may be related or identical.")
+        else:
+            output_lines.append(
+                f"   • Moderate similarity ({best_similarity:.1f}%) - Related issues exist but may not be identical."
+            )
+            output_lines.append("   • Review these issues for context, but a new issue may be warranted.")
+        
+        return '\n'.join(output_lines)
         
     except Exception as e:
-        error_msg = str(e)
-        
-        if "401" in error_msg or "Unauthorized" in error_msg:
-            return f"Authentication failed. Please check your JIRA_PAT environment variable: {error_msg}"
-        elif "403" in error_msg or "Forbidden" in error_msg:
-            return f"Permission denied. Check if you have permission to search Jira: {error_msg}"
-        elif "400" in error_msg or "Bad Request" in error_msg:
-            return f"Invalid JQL query. Please check your JQL syntax: {error_msg}"
-        else:
-            return f"Error searching Jira bugs: {error_msg}"
+        return f"Error searching for similar Jira issues: {str(e)}"
 
-# List of all available tools
 TOOLS = [
     get_text_from_file,
     get_failed_testsuites,
     analyze_screenshot_visual_confirmation,
     get_immediate_log_files_content,
+    get_folder_structure,
+    get_immediate_directories,
+    get_immediate_files,
+    check_file_exists,
     create_jira_bug,
-    search_jira_bugs,
-] 
+    search_similar_jira_issues,
+]

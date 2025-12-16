@@ -38,6 +38,7 @@ class CLIInterface:
                     print(f"\nYOU (Initial Setup & Query): {user_input_text.splitlines()[1][:100]}...")
                     is_first_turn = False
                 else:
+                    self._save_conversation_log()
                     user_input_text = input("\nYOU: ")
                     if user_input_text.lower() == "exit":
                         print("Exiting chat.")

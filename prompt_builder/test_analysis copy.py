@@ -67,7 +67,8 @@ class E2ETestAnalysisBuilder:
         d. Integrate the response. If error (e.g., image not found), report it.
         e. Return the exact root cause analysis from analyze_screenshot_visual_confirmation.
 
-    3. Find Similar Jira Issues (Mandatory):
+    3. **Test Purpose**: Describe what the test was trying to verify.
+    4. Find Similar Jira Issues (Mandatory):
         a. After completing the Root Cause Analysis, create a comprehensive `failure_description` summarizing your findings.
         b. You MUST call `search_similar_jira_issues` for each failure, providing the `test_name`, the `error_message` from the JUnit XML, and your generated `failure_description`.
 """
@@ -107,7 +108,7 @@ Test failure log URL from the prow link: https://prow.ci.openshift.org/view/gs/t
 Available Tools:
 - `get_failed_testsuites(xml_file_prefix: str)`: Use this to read specific file like JUnit XML.
 - `get_text_from_file(file_path: str)`: Use this to read specific, smaller files.
-- `analyze_screenshot_visual_confirmation(image_path: str, test_failure_analysis_text: str, test_title: str, junit_xml_failure: str)`: **MANDATORY for each failure.** This returns a comprehensive 2-3 sentence Root Cause Analysis paragraph that starts with "The root cause is..." and includes visual evidence/error analysis. You MUST insert this output directly into the "Root Cause Analysis" section without modification.
+- `analyze_screenshot_visual_confirmation(image_path: str, test_failure_analysis_text: str, test_title: str, junit_xml_failure: str)`: **MANDATORY for each failure.** This returns pre-formatted text with three sections: "Visual Evidence:", "Visual-to-Failure Correlation:", and "Conclusion:". You MUST insert this output directly into the "Root Cause Analysis" section without modification.
 - `get_immediate_log_files_content(prefix: str)`: Use this to read the content of all immediate .log files from the given prefix.
 - `search_similar_jira_issues(failure_description: str, test_name: str, error_message: str)`: **MANDATORY for each failure.** This returns formatted similar issues. Extract the issue key, match percentage, and summary for each result and format them as specified in the output template.
 
@@ -115,63 +116,52 @@ Available Tools:
 
 **CRITICAL: You MUST follow this EXACT format for EVERY failed test case. Do NOT deviate from this structure:**
 
-*[Number]. Test Case: [Full Test Case Name]*
+**[Number]. Test Case: [Full Test Case Name]**
 
-• *Failure Message:* `[Exact error message from JUnit XML - use backticks for code formatting]`
-• *Root Cause Analysis:* [Insert the exact output from analyze_screenshot_visual_confirmation - a comprehensive 2-3 sentence paragraph that starts with "The root cause is..." and includes visual evidence/error analysis]
-• *Actionable Recommendations:*
-  1. [First specific, actionable fix]
-  2. [Second specific, actionable fix - if applicable]
-• *Similar Jira Issues:* [order based on relevance instead of match percentage]
-  - [🔴 or 🟢 if issue is open or closed] *<https://issues.redhat.com/browse/ISSUE-KEY|ISSUE-KEY>:* "[Issue summary]" - [Brief relevance explanation]
+*   **Test Purpose:** [One clear sentence describing what the test verifies]
+*   **Failure Message:** `[Exact error message from JUnit XML - use backticks for code formatting]`
+*   **Root Cause Analysis:**
+    *   **Visual Evidence:** [What the screenshot shows - UI state, elements visible, error messages, etc. If no screenshot, state "No screenshot available"]
+    *   **Visual-to-Failure Correlation:** [How the visual state relates to the failure - expected vs actual, which step failed]
+    *   **Conclusion:** [The root cause in one clear sentence - e.g., "The root cause is an incorrect locator" or "The root cause is a timing issue"]
+*   **Actionable Recommendations:**
+    1.  [First specific, actionable fix]
+    2.  [Second specific, actionable fix - if applicable]
+*   **Similar Jira Issues:** [order based on relevance instead of match percentage]
+    *   **[ISSUE-KEY](https://issues.redhat.com/browse/ISSUE-KEY) ([XX.X]% match):** "[Issue summary]" - [Brief relevance explanation]
+    *   **[ISSUE-KEY](https://issues.redhat.com/browse/ISSUE-KEY) ([XX.X]% match):** "[Issue summary]" - [Brief relevance explanation]
 
 **For CI/Build/Step Registry failures or pod log issues, use this EXACT format:**
 
-*[Number]. Issue Type: [CI Failure/Build Failure/Pod Log Issue]*
+**[Number]. Issue Type: [CI Failure/Build Failure/Pod Log Issue]**
 
-• *Issue Description:* [One sentence summary of the problem]
-• *Failure Details:* [Key error messages and symptoms - use backticks for error text]
-• *Root Cause Analysis:* [Detailed analysis based on logs - identify the specific cause]
-• *Actionable Recommendations:*
-  1. [First specific, actionable fix]
-  2. [Second specific, actionable fix - if applicable]
-• *Similar Jira Issues:*
-  - [🔴 or 🟢 if issue is open or closed] *<https://issues.redhat.com/browse/ISSUE-KEY|ISSUE-KEY>:* "[Issue summary]" - [Brief relevance explanation]
+*   **Issue Description:** [One sentence summary of the problem]
+*   **Failure Details:** [Key error messages and symptoms - use backticks for error text]
+*   **Root Cause Analysis:** [Detailed analysis based on logs - identify the specific cause]
+*   **Actionable Recommendations:**
+    1.  [First specific, actionable fix]
+    2.  [Second specific, actionable fix - if applicable]
+*   **Similar Jira Issues:**
+    *   **[ISSUE-KEY](https://issues.redhat.com/browse/ISSUE-KEY) ([XX.X]% match):** "[Issue summary]" - [Brief relevance explanation]
 
 **IMPORTANT FORMATTING RULES:**
-1. *Consistency is critical* - Use the EXACT same format for every single test failure
-2. Use Slack-compatible formatting:
-   - Use `•` (bullet point) for main items, NOT `*`
-   - Use `-` (dash) for sub-items
-   - Use single `*asterisks*` for bold text (Slack mrkdwn format)
-   - Use backticks for code/error messages
-3. The output from `analyze_screenshot_visual_confirmation` is a comprehensive 2-3 sentence paragraph - insert it directly after "Root Cause Analysis:" without any modifications or additional formatting
-4. For "Similar Jira Issues", parse the output from `search_similar_jira_issues` and format each issue as: *<https://issues.redhat.com/browse/ISSUE-KEY|ISSUE-KEY>:* "[Summary]" - [Why it's relevant]
-   - The ISSUE-KEY must be a clickable Slack link using the format: <https://issues.redhat.com/browse/ISSUE-KEY|ISSUE-KEY>
+1. **Consistency is critical** - Use the EXACT same format for every single test failure
+2. The output from `analyze_screenshot_visual_confirmation` already contains the three required sub-sections for "Root Cause Analysis" - insert it as-is with proper indentation
+3. For "Similar Jira Issues", parse the output from `search_similar_jira_issues` and format each issue as: **[ISSUE-KEY](https://issues.redhat.com/browse/ISSUE-KEY) ([XX.X]% match):** "[Summary]" - [Why it's relevant]
+   - The ISSUE-KEY must be a clickable markdown link using the format: [ISSUE-KEY](https://issues.redhat.com/browse/ISSUE-KEY)
    - Replace ISSUE-KEY with the actual issue key (e.g., RHDHBUGS-2245)
-   - Do NOT include match percentage in the final output
-5. Use numbered format for test cases: "*1. Test Case:*", "*2. Test Case:*", etc.
+4. Use numbered format for test cases: "**1. Test Case:**", "**2. Test Case:**", etc.
+5. Maintain consistent markdown: bold for section headers, backticks for code/errors, proper indentation for nested bullets
 6. Keep recommendations concise - maximum 2 actionable items
 
-7. *Multiple Failures Analysis - Cross-Reference Detection:*
+7. **Multiple Failures Analysis - Cross-Reference Detection:**
    - If analyzing multiple test failures, look for patterns
    - If 2+ failures share the same root cause (e.g., same locator issue, same timeout, same API failure), note it
-   - If patterns exist, add a section before the final prompt:
+   - At the END of your analysis, add a section:
 
-   *Cross-Failure Patterns Detected:*
-   • [Pattern description] affects tests: [Test 1], [Test 2], [Test 3]
-   • [Another pattern] indicates [system-wide issue]
-
-8. *Final Prompt for Jira Issue Creation:*
-   - After completing ALL failure analysis, review which failures do NOT have an open (🔴) Jira issue
-   - At the very END of your response, add this section ONLY if there are failures without open issues:
-
-   ---
-   *Would you like me to create Jira issues for the following failures which don't have open Jira issues?*
-   • Failure 1 [test title]
-   • Failure 2 [test title]
-
-   [Only list failures that have no open Jira issues.]
+   **Cross-Failure Patterns Detected:**
+   *   [Pattern description] affects tests: [Test 1], [Test 2], [Test 3]
+   *   [Another pattern] indicates [system-wide issue]
 
 Start your analysis.
 """

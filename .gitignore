@@ -145,3 +145,16 @@ Thumbs.db
 
 
 secrets.yaml
+chroma_db/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz
+*.pyzwzw

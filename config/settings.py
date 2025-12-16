@@ -6,7 +6,9 @@ class Settings:
     """Configuration settings for the test analysis agent."""
     
     # Model configurations
-    GEMINI_MODEL_NAME: str = "gemini-2.0-flash"
+    # GEMINI_MODEL_NAME: str = "gemini-2.0-flash"
+    GEMINI_MODEL_NAME: str = "gemini-2.5-pro"
+
     
     # Google Cloud Storage
     GCS_BUCKET_NAME: str = "test-platform-results"
@@ -39,6 +41,11 @@ class Settings:
     def port(self) -> int:
         """Get port for HTTP mode."""
         return int(os.environ.get('PORT', 3000))
+
+    @property
+    def chroma_db_dir(self) -> str:
+        """Get ChromaDB directory from environment."""
+        return os.environ.get("CHROMA_DB_DIR", "./chroma_db")
 
 # Global settings instance
 settings = Settings() 
