@@ -158,3 +158,5 @@ __pycache__/
 *.pyzw
 *.pyzwz
 *.pyzwzw
+
+k8s/

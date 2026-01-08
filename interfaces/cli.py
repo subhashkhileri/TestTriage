@@ -24,12 +24,24 @@ class CLIInterface:
         try:
             while True:
                 if is_first_turn:
-                    pattern = r'https://prow\.ci\.openshift\.org/view/gs/test-platform-results/(logs/[^|>\s/]+(?:/[^|>\s/]+)*)'
-                    match = re.search(pattern, input("Enter the prow link: "))
-                    if match:
-                        base_dir = match.group(1)
+                    user_link = input("Enter the prow or gcsweb link: ")
+
+                    # Pattern for prow URLs
+                    prow_pattern = r'https://prow\.ci\.openshift\.org/view/gs/test-platform-results/((?:logs|pr-logs)/[^|>\s/]+(?:/[^|>\s/]+)*)'
+                    # Pattern for gcsweb URLs - extract base_dir up to job ID
+                    gcsweb_pattern = r'https://gcsweb-ci\.apps\.ci\.l2s4\.p1\.openshiftapps\.com/gcs/test-platform-results/((?:logs|pr-logs)(?:/[^/\s|>]+)*/\d+)'
+
+                    prow_match = re.search(prow_pattern, user_link)
+                    gcsweb_match = re.search(gcsweb_pattern, user_link)
+
+                    if prow_match:
+                        base_dir = prow_match.group(1)
+                    elif gcsweb_match:
+                        base_dir = gcsweb_match.group(1)
+                        prow_link = f"https://prow.ci.openshift.org/view/gs/test-platform-results/{base_dir}"
+                        print(f"Constructed prow link: {prow_link}")
                     else:
-                        print("No prow link found")
+                        print("No valid prow or gcsweb link found")
                         return
                     user_input_text = get_e2e_test_analysis_prompt(
                         base_dir=base_dir

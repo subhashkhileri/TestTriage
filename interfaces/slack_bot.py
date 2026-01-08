@@ -53,15 +53,25 @@ class SlackBot:
             is_first_turn = len(conversation_history_messages) == 0
 
             if is_first_turn:
-                # Extract prow link from message
-                pattern = r'https://prow\.ci\.openshift\.org/view/gs/test-platform-results/(logs/[^|>\s/]+(?:/[^|>\s/]+)*)'
-                match = re.search(pattern, event['text'])
-                if match:
-                    base_dir = match.group(1)
+                # Extract prow or gcsweb link from message
+                # Pattern for prow URLs
+                prow_pattern = r'https://prow\.ci\.openshift\.org/view/gs/test-platform-results/((?:logs|pr-logs)/[^|>\s/]+(?:/[^|>\s/]+)*)'
+                # Pattern for gcsweb URLs - extract base_dir up to job ID
+                gcsweb_pattern = r'https://gcsweb-ci\.apps\.ci\.l2s4\.p1\.openshiftapps\.com/gcs/test-platform-results/((?:logs|pr-logs)(?:/[^/\s|>]+)*/\d+)'
+
+                prow_match = re.search(prow_pattern, event['text'])
+                gcsweb_match = re.search(gcsweb_pattern, event['text'])
+
+                if prow_match:
+                    base_dir = prow_match.group(1)
+                elif gcsweb_match:
+                    base_dir = gcsweb_match.group(1)
+                    prow_link = f"https://prow.ci.openshift.org/view/gs/test-platform-results/{base_dir}"
+                    logger.info(f"Constructed prow link from gcsweb: {prow_link}")
                 else:
                     client.chat_postMessage(
                         channel=event['channel'],
-                        text="No prow link found",
+                        text="No valid prow or gcsweb link found",
                         thread_ts=thread_ts,
                         unfurl_links=False,
                         unfurl_media=False

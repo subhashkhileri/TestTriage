@@ -14,8 +14,9 @@ class AgentState(TypedDict):
 
 # Initialize the model with tools
 model = ChatGoogleGenerativeAI(
-    model=settings.GEMINI_MODEL_NAME, 
-    api_key=settings.google_api_key
+    model=settings.GEMINI_MODEL_NAME,
+    api_key=settings.google_api_key,
+    temperature=0.3  # Low temperature to reduce hallucinations and ensure tool compliance
 )
 llm_with_tools = model.bind_tools(TOOLS)
 
