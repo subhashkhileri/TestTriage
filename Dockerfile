@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM --platform=linux/amd64 python:3.11-slim
 
 WORKDIR /app
 
@@ -13,6 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
 COPY . .
+
+RUN chmod +x entrypoint.sh
 
 # Create a non-root user and data directory
 RUN groupadd -r appuser && useradd -r -g appuser appuser
@@ -32,4 +34,4 @@ EXPOSE 3000
 ENV CONVERSATION_DATA_DIR=/tmp/
 
 # Command to run the application
-CMD ["python", "main.py", "slack"] 
+CMD ["./entrypoint.sh"] 

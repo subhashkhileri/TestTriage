@@ -14,8 +14,9 @@ class AgentState(TypedDict):
 
 # Initialize the model with tools
 model = ChatGoogleGenerativeAI(
-    model=settings.GEMINI_MODEL_NAME, 
-    api_key=settings.google_api_key
+    model=settings.GEMINI_MODEL_NAME,
+    api_key=settings.google_api_key,
+    temperature=0.3  # Low temperature to reduce hallucinations and ensure tool compliance
 )
 llm_with_tools = model.bind_tools(TOOLS)
 
@@ -32,9 +33,27 @@ def slack_text_formatter(state: AgentState) -> AgentState:
     """Format the response text for Slack rich text formatting."""
     messages = state["messages"]
     last_message = messages[-1].content
-    current_user_message = HumanMessage(
-        content=f"Format the given text into slack rich text, remove existing markdown tags if any otherwise it will break the slack rich text. only response back with given text with proper markdown tags that slack can understand, no other text or markdown tags or no json format or suggestions or anything else :\n------Text-------\n{last_message}"
-    )
+
+    formatting_prompt = f"""You are a text formatter. Your ONLY job is to convert the provided text into Slack-compatible markdown format.
+
+INSTRUCTIONS:
+1. Keep all the content exactly as provided - do NOT summarize or change the meaning
+2. Convert markdown to Slack's mrkdwn format:
+   - Keep *bold* and _italic_ as-is
+   - Keep `code blocks` as-is
+   - Keep bullet points (• or -) as-is
+   - Keep numbered lists as-is
+   - Keep links in format: <url|text> or just <url>
+3. Do NOT add any introductory text like "Here is..." or "The formatted text is..."
+4. Do NOT add any explanations or comments
+5. Return ONLY the formatted text, nothing else
+
+TEXT TO FORMAT:
+{last_message}
+
+FORMATTED OUTPUT:"""
+
+    current_user_message = HumanMessage(content=formatting_prompt)
     response = model.invoke([current_user_message])
     messages[-1].content = response.content
     return {"messages": messages}
