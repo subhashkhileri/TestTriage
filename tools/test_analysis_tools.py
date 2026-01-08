@@ -338,9 +338,9 @@ def create_jira_bug(
 
         # Try to add labels separately (this is optional)
         try:
-            print(f"Adding label 'ci-fail' to issue {new_issue.key}...")
-            new_issue.update(fields={'labels': ['ci-fail']})
-            print(f"✓ Successfully added label")
+            print(f"Adding labels 'ci-fail' and 'AITestTriage' to issue {new_issue.key}...")
+            new_issue.update(fields={'labels': ['ci-fail', 'AITestTriage']})
+            print(f"✓ Successfully added labels")
         except Exception as e:
             error_msg = str(e)
             update_errors.append(f"Could not add labels: {error_msg}")
